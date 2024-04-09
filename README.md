@@ -54,7 +54,7 @@ slog_align:
 
 Use it as:
 
-	l := slow.New(NewAlignedHandler(os.Stdout))
+	l := slog.New(NewAlignedHandler(os.Stdout))
 	l.Info("yo yo")
 
 
