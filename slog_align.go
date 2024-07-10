@@ -24,17 +24,25 @@ var colors = map[slog.Level]zli.Color{
 
 // AlignedHandler is a handler for slog that prints values aligned.
 type AlignedHandler struct {
-	w       io.Writer
-	g       []string
-	attr    []slog.Attr
-	lvl     slog.Level
-	timefmt string
-	indent  string
-	root    string
-	width   int
+	w        io.Writer
+	g        []string
+	attr     []slog.Attr
+	replAttr func(groups []string, a slog.Attr) slog.Attr
+	lvl      slog.Level
+	timefmt  string
+	indent   string
+	root     string
+	width    int
 }
 
-func NewAlignedHandler(w io.Writer) AlignedHandler {
+func NewAlignedHandler(w io.Writer, opt *slog.HandlerOptions) AlignedHandler {
+	if opt == nil {
+		opt = &slog.HandlerOptions{}
+	}
+	if opt.Level == nil {
+		opt.Level = slog.LevelInfo
+	}
+
 	r := moduleRoot()
 	if r != "" {
 		r += string(os.PathSeparator)
@@ -48,7 +56,7 @@ func NewAlignedHandler(w io.Writer) AlignedHandler {
 		}
 	}
 
-	h := AlignedHandler{w: w, lvl: slog.LevelDebug, root: r, width: width}
+	h := AlignedHandler{w: w, lvl: opt.Level.Level(), replAttr: opt.ReplaceAttr, root: r, width: width}
 	h.SetTimeFormat("15:04")
 	return h
 }
@@ -125,6 +133,12 @@ func (h AlignedHandler) Handle(ctx context.Context, r slog.Record) error {
 	attr := make([]slog.Attr, 0, r.NumAttrs())
 	w := 0
 	r.Attrs(func(a slog.Attr) bool {
+		if h.replAttr != nil {
+			a = h.replAttr(h.g, a)
+			if a.Equal(slog.Attr{}) {
+				return true
+			}
+		}
 		if h := termtext.Width(a.Key); h > w {
 			w = h
 		}
@@ -132,6 +146,12 @@ func (h AlignedHandler) Handle(ctx context.Context, r slog.Record) error {
 		return true
 	})
 	for _, a := range h.attr {
+		if h.replAttr != nil {
+			a = h.replAttr(h.g, a)
+			if a.Equal(slog.Attr{}) {
+				continue
+			}
+		}
 		if h := termtext.Width(a.Key); h > w {
 			w = h
 		}

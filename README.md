@@ -54,11 +54,11 @@ slog_align:
 
 Use it as:
 
-	l := slog.New(NewAlignedHandler(os.Stdout))
+	l := slog.New(slog_align.NewAlignedHandler(os.Stdout, nil))
 	l.Info("yo yo")
 
 
 Or globally:
 
-	slog.SetDefault(slog.New(slog_align.NewAlignedHandler(os.Stdout)))
+	slog.SetDefault(slog.New(slog_align.NewAlignedHandler(os.Stdout, nil)))
 	slog.Info("yo yo")

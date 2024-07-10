@@ -15,7 +15,7 @@ func run(w io.Writer) {
 	d := time.Date(2023, 03, 20, 8, 26, 0, 0, time.UTC)
 	testTime = &d
 
-	h := NewAlignedHandler(w)
+	h := NewAlignedHandler(w, &slog.HandlerOptions{Level: slog.LevelDebug})
 	h.width = 80
 	zli.WantColor = true
 	slog.SetDefault(slog.New(h))
@@ -69,7 +69,7 @@ func TestAlignedHandler(t *testing.T) {
 	run(&b)
 	if b.String() != want {
 		//fmt.Println(ztest.Diff(b.String(), want))
-		t.Fatalf("\nhave:\n%q\n\nwant:\n%q\n", b.String(), want)
+		t.Fatalf("\nhave:\n%s\n\nwant:\n%s\n", b.String(), want)
 	}
 
 	run(os.Stdout)
