@@ -162,7 +162,7 @@ func (h AlignedHandler) Handle(ctx context.Context, r slog.Record) error {
 		if a.Key == "" {
 			continue
 		}
-		fmt.Fprintf(h.w, "%s%s%s = %s\n", h.indent, a.Key,
+		fmt.Fprintf(h.w, "%s%s%s = %s\n", h.indent, zli.Colorize(a.Key, zli.Bold),
 			strings.Repeat(" ", w-termtext.Width(a.Key)),
 			strings.ReplaceAll(strings.TrimRight(a.Value.String(), "\n"), "\n", "\n"+h.indent))
 	}
