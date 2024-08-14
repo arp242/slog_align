@@ -118,6 +118,19 @@ func (h AlignedHandler) Handle(ctx context.Context, r slog.Record) error {
 	}
 	loc := fmt.Sprintf("%s:%d", strings.TrimPrefix(file, h.root), line)
 
+	// Bit of a hack to shorten paths from dependencies:
+	//
+	//   02:22 INFO  msg   /home/martin/.cache/go/pkg/mod/github.com/riverqueue/river@v0.11.2/client.go:532
+	//   02:24 INFO  msg   github.com/riverqueue/river@v0.11.2/client.go:532
+	//
+	// Not sure if there's really a good way to do this; we need to know the
+	// GOMODCACHE value during build time, and I don't think that's available.
+	//
+	// TODO: only do this if not built with -trimpath.
+	if i := strings.Index(loc, "pkg/mod/"); i > -1 {
+		loc = loc[i+8:]
+	}
+
 	sep := "  "
 	if h.width > 0 {
 		l := h.width - termtext.Width(pr) - termtext.Width(loc)
