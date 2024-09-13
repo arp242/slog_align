@@ -6,9 +6,11 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"zgo.at/termtext"
@@ -32,7 +34,8 @@ type AlignedHandler struct {
 	timefmt  string
 	indent   string
 	root     string
-	width    int
+	width    *int
+	widthMu  *sync.Mutex
 }
 
 func NewAlignedHandler(w io.Writer, opt *slog.HandlerOptions) AlignedHandler {
@@ -48,15 +51,42 @@ func NewAlignedHandler(w io.Writer, opt *slog.HandlerOptions) AlignedHandler {
 		r += string(os.PathSeparator)
 	}
 
-	width := 0
+	h := AlignedHandler{
+		w:        w,
+		lvl:      opt.Level.Level(),
+		replAttr: opt.ReplaceAttr,
+		root:     r,
+		widthMu:  new(sync.Mutex),
+		width:    new(int),
+	}
+
 	if std, ok := w.(*os.File); ok && (std.Fd() == 1 || std.Fd() == 2) {
-		width, _, _ = zli.TerminalSize(os.Stdin.Fd())
-		if width < 60 && width > 0 {
-			width = 60
+		w, _, _ := zli.TerminalSize(std.Fd())
+		if w < 60 && w > 0 {
+			w = 60
+		}
+		if w > 0 {
+			h.setWidth(w)
+		}
+
+		if w > 0 {
+			winChange := make(chan os.Signal, 1)
+			signal.Notify(winChange, sigWinChange)
+			go func() {
+				for {
+					<-winChange
+					w, _, _ := zli.TerminalSize(std.Fd())
+					if w < 60 && w > 0 {
+						w = 60
+					}
+					if w > 0 {
+						h.setWidth(w)
+					}
+				}
+			}()
 		}
 	}
 
-	h := AlignedHandler{w: w, lvl: opt.Level.Level(), replAttr: opt.ReplaceAttr, root: r, width: width}
 	h.SetTimeFormat("15:04")
 	return h
 }
@@ -70,6 +100,18 @@ func (h *AlignedHandler) SetTimeFormat(fmt string) {
 	if fmt == "" {
 		h.indent = "      "
 	}
+}
+
+func (h *AlignedHandler) getWidth() int {
+	h.widthMu.Lock()
+	defer h.widthMu.Unlock()
+	return *h.width
+}
+
+func (h *AlignedHandler) setWidth(w int) {
+	h.widthMu.Lock()
+	defer h.widthMu.Unlock()
+	*h.width = w
 }
 
 // Enabled reports whether the handler handles records at the given level.
@@ -100,7 +142,8 @@ func (h AlignedHandler) Handle(ctx context.Context, r slog.Record) error {
 	}
 
 	color := ""
-	if h.width > 0 {
+	width := h.getWidth()
+	if width > 0 {
 		color = zli.Colorize(" ", colors[r.Level])
 	}
 
@@ -132,8 +175,8 @@ func (h AlignedHandler) Handle(ctx context.Context, r slog.Record) error {
 	}
 
 	sep := "  "
-	if h.width > 0 {
-		l := h.width - termtext.Width(pr) - termtext.Width(loc)
+	if width > 0 {
+		l := width - termtext.Width(pr) - termtext.Width(loc)
 		if l < 0 {
 			l = 1
 		}

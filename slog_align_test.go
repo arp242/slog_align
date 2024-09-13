@@ -16,7 +16,8 @@ func run(w io.Writer) {
 	testTime = &d
 
 	h := NewAlignedHandler(w, &slog.HandlerOptions{Level: slog.LevelDebug})
-	h.width = 80
+	wid := 80
+	h.width = &wid
 	zli.WantColor = true
 	slog.SetDefault(slog.New(h))
 
