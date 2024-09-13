@@ -147,7 +147,7 @@ func (h AlignedHandler) Handle(ctx context.Context, r slog.Record) error {
 		color = zli.Colorize(" ", colors[r.Level])
 	}
 
-	pr := fmt.Sprintf("%s%s%-5s %s%s", color, t, r.Level, g, zli.Colorize(r.Message, zli.Bold))
+	pr := fmt.Sprintf("%s%s%-5s %s", color, t, r.Level, zli.Colorize(g+r.Message, zli.Bold))
 	var (
 		file string
 		line int
@@ -218,7 +218,7 @@ func (h AlignedHandler) Handle(ctx context.Context, r slog.Record) error {
 		if a.Key == "" {
 			continue
 		}
-		fmt.Fprintf(h.w, "%s%s%s = %s\n", h.indent, zli.Colorize(a.Key, zli.Bold),
+		fmt.Fprintf(h.w, "%s%s%s = %s\n", h.indent, a.Key,
 			strings.Repeat(" ", w-termtext.Width(a.Key)),
 			strings.ReplaceAll(strings.TrimRight(a.Value.String(), "\n"), "\n", "\n"+h.indent))
 	}
