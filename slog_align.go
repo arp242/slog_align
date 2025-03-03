@@ -1,7 +1,9 @@
 package slog_align
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -13,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"zgo.at/jfmt"
 	"zgo.at/termtext"
 	"zgo.at/zli"
 )
@@ -218,9 +221,35 @@ func (h AlignedHandler) Handle(ctx context.Context, r slog.Record) error {
 		if a.Key == "" {
 			continue
 		}
+
+		var val string
+		switch v := a.Value; v.Kind() {
+		default:
+			val = v.String()
+
+		case slog.KindAny:
+			m, ok := v.Any().(map[string]any)
+			if !ok { // Not a map (e.g. slice, struct): just use string
+				val = v.String()
+			} else {
+				var buf bytes.Buffer
+				enc := json.NewEncoder(&buf)
+				enc.SetEscapeHTML(false)
+				if err := enc.Encode(m); err != nil {
+					return err
+				}
+				f := jfmt.NewFormatter(100, "", "    ")
+				var err error
+				val, err = f.FormatString(buf.String())
+				if err != nil {
+					return err
+				}
+			}
+		}
+
 		fmt.Fprintf(h.w, "%s%s%s = %s\n", h.indent, a.Key,
 			strings.Repeat(" ", w-termtext.Width(a.Key)),
-			strings.ReplaceAll(strings.TrimRight(a.Value.String(), "\n"), "\n", "\n"+h.indent))
+			strings.ReplaceAll(strings.TrimRight(val, "\n"), "\n", "\n"+h.indent))
 	}
 
 	return nil

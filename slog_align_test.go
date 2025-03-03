@@ -54,13 +54,21 @@ var want = `
 [48;5;51m [0m08:26 INFO  [1minfo[0m                                          slog_align_test.go:42
              str    = foo
              int    = 123
-             map    = map[another:true key:value struct:{[1 2 3]}]
+             map    = {
+                 "another": true,
+                 "key":     "value",
+                 "struct":  {}
+             }
              slice  = [a b]
              struct = {asd 123}
 [48;5;51m [0m08:26 INFO  [1mgroup: info[0m                                   slog_align_test.go:45
              str    = foo
              int    = 123
-             map    = map[another:true key:value struct:{[1 2 3]}]
+             map    = {
+                 "another": true,
+                 "key":     "value",
+                 "struct":  {}
+             }
              slice  = [a b]
              struct = {asd 123}
 `[1:]
