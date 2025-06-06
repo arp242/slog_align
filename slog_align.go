@@ -189,8 +189,26 @@ func (h AlignedHandler) Handle(ctx context.Context, r slog.Record) error {
 	}
 	fmt.Fprintln(h.w, pr+sep+loc)
 
-	attr := make([]slog.Attr, 0, r.NumAttrs())
-	w := 0
+	var (
+		attr    = make([]slog.Attr, 0, r.NumAttrs())
+		w       = 0
+		addAttr func(slog.Attr)
+	)
+	addAttr = func(a slog.Attr) {
+		if a.Value.Kind() == slog.KindGroup {
+			g := a.Value.Group()
+			for _, gg := range g {
+				gg.Key = a.Key + "." + gg.Key
+				addAttr(gg)
+			}
+			return
+		}
+
+		if h := termtext.Width(a.Key); h > w {
+			w = h
+		}
+		attr = append(attr, a)
+	}
 	r.Attrs(func(a slog.Attr) bool {
 		if h.replAttr != nil {
 			a = h.replAttr(h.g, a)
@@ -198,10 +216,7 @@ func (h AlignedHandler) Handle(ctx context.Context, r slog.Record) error {
 				return true
 			}
 		}
-		if h := termtext.Width(a.Key); h > w {
-			w = h
-		}
-		attr = append(attr, a)
+		addAttr(a)
 		return true
 	})
 	for _, a := range h.attr {
@@ -211,10 +226,7 @@ func (h AlignedHandler) Handle(ctx context.Context, r slog.Record) error {
 				continue
 			}
 		}
-		if h := termtext.Width(a.Key); h > w {
-			w = h
-		}
-		attr = append(attr, a)
+		addAttr(a)
 	}
 
 	for _, a := range attr {
