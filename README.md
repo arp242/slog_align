@@ -4,7 +4,7 @@ I've seen so many apps that will just spit walls and walls of text on error
 failures and trying to get something meaningful out of it is like manually
 digging through War & Peace to find that one 6-word quote.
 
-I don't know why all these go loggers have such terrible output by default; Just
+I don't know why all these loggers have such terrible output by default; Just
 printing things a bit aligned makes such a world of difference. I must've
 written a handler like this 5 or 6 times for different loggers over the years by
 now.

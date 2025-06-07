@@ -178,7 +178,11 @@ func (h AlignedHandler) Handle(ctx context.Context, r slog.Record) error {
 	}
 
 	sep := "  "
-	if width > 0 {
+	if strings.Contains(pr, "\n") {
+		r.Add("location", loc)
+		loc, sep = "", ""
+		pr = strings.ReplaceAll(pr, "\n", "\n"+strings.Repeat(" ", len(t)+7))
+	} else if width > 0 {
 		l := width - termtext.Width(pr) - termtext.Width(loc)
 		if l < 0 {
 			l = 1
