@@ -29,16 +29,18 @@ var colors = map[slog.Level]zli.Color{
 
 // AlignedHandler is a handler for slog that prints values aligned.
 type AlignedHandler struct {
-	w        io.Writer
-	g        []string
-	attr     []slog.Attr
-	replAttr func(groups []string, a slog.Attr) slog.Attr
-	lvl      slog.Level
-	timefmt  string
-	indent   string
-	root     string
-	width    *int
-	widthMu  *sync.Mutex
+	w              io.Writer
+	g              []string
+	attr           []slog.Attr
+	replAttr       func(groups []string, a slog.Attr) slog.Attr
+	lvl            slog.Level
+	timefmt        string
+	indent         string
+	root           string
+	color          bool
+	inlineLocation bool
+	width          *int
+	widthMu        *sync.Mutex
 }
 
 func NewAlignedHandler(w io.Writer, opt *slog.HandlerOptions) AlignedHandler {
@@ -55,12 +57,14 @@ func NewAlignedHandler(w io.Writer, opt *slog.HandlerOptions) AlignedHandler {
 	}
 
 	h := AlignedHandler{
-		w:        w,
-		lvl:      opt.Level.Level(),
-		replAttr: opt.ReplaceAttr,
-		root:     r,
-		widthMu:  new(sync.Mutex),
-		width:    new(int),
+		w:              w,
+		lvl:            opt.Level.Level(),
+		replAttr:       opt.ReplaceAttr,
+		root:           r,
+		widthMu:        new(sync.Mutex),
+		width:          new(int),
+		color:          zli.WantColor,
+		inlineLocation: zli.WantColor,
 	}
 
 	if std, ok := w.(*os.File); ok && (std.Fd() == 1 || std.Fd() == 2) {
@@ -94,7 +98,7 @@ func NewAlignedHandler(w io.Writer, opt *slog.HandlerOptions) AlignedHandler {
 	return h
 }
 
-// SetTimeFormat sets the timestsamp format.
+// SetTimeFormat sets the timestamp format.
 //
 // The default is 15:04. Use an empty string to disable outputting a timestamp.
 func (h *AlignedHandler) SetTimeFormat(fmt string) {
@@ -104,6 +108,14 @@ func (h *AlignedHandler) SetTimeFormat(fmt string) {
 		h.indent = "      "
 	}
 }
+
+// SetColor enables or disables the colour output; usually this is set by
+// default based on stdout.
+func (h *AlignedHandler) SetColor(set bool) { h.color = set }
+
+// SetInlineLocation controls if the call location should be inline on the right
+// or as an attribute.
+func (h *AlignedHandler) SetInlineLocation(set bool) { h.inlineLocation = set }
 
 func (h *AlignedHandler) getWidth() int {
 	h.widthMu.Lock()
@@ -144,13 +156,19 @@ func (h AlignedHandler) Handle(ctx context.Context, r slog.Record) error {
 		g = strings.Join(h.g, "·") + ": "
 	}
 
-	color := ""
-	width := h.getWidth()
-	if width > 0 {
-		color = zli.Colorize(" ", colors[r.Level])
+	var (
+		width = h.getWidth()
+		pr    string
+	)
+	if h.color {
+		color := ""
+		if width > 0 {
+			color = zli.Colorize(" ", colors[r.Level])
+		}
+		pr = fmt.Sprintf("%s%s%-5s %s", color, t, r.Level, zli.Colorize(g+r.Message, zli.Bold))
+	} else {
+		pr = fmt.Sprintf("%s%-5s %s", t, r.Level, g+r.Message)
 	}
-
-	pr := fmt.Sprintf("%s%s%-5s %s", color, t, r.Level, zli.Colorize(g+r.Message, zli.Bold))
 	var (
 		file string
 		line int
@@ -178,7 +196,7 @@ func (h AlignedHandler) Handle(ctx context.Context, r slog.Record) error {
 	}
 
 	sep := "  "
-	if strings.Contains(pr, "\n") {
+	if strings.Contains(pr, "\n") || !h.inlineLocation {
 		r.Add("location", loc)
 		loc, sep = "", ""
 		pr = strings.ReplaceAll(pr, "\n", "\n"+strings.Repeat(" ", len(t)+7))
